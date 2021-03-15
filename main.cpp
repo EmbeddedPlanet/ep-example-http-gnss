@@ -78,8 +78,11 @@ int main()
     gnss.enable();
 
     // Configure the GNSS data stream (enable GGA and RMC)
+#if TELIT_ME310_GNSS_ENABLED
     gnss.configure_gnss_data_stream(gnss_type::NMEA_STREAM_ENABLE_SECOND_FORMAT, true, false, false, false, true, false);
-
+#else
+    gnss.configure_gnss_data_stream(gnss_type::NMEA_STREAM_ENABLE_SECOND_FORMAT, true, false, false, true, true, false);
+#endif
     // Configure the extended GNSS data stream (enable GNRMC and GPGGA)
 #if TELIT_ME310_GNSS_ENABLED
     gnss.configure_gnss_data_stream_extended(false, false, false, false, false, false, false, true, false, false, false, true, false);
