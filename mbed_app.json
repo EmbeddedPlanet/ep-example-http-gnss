@@ -1,0 +1,24 @@
+{
+    "target_overrides": {
+        "*": {
+            "platform.stdio-baud-rate": 115200,
+            "platform.stdio-convert-newlines": true,
+            "mbed-trace.enable": true,
+            "mbed-trace.max-level": "TRACE_LEVEL_DEBUG",
+            "target.printf_lib": "std",
+            "drivers.uart-serial-rxbuf-size": 1024,
+            "drivers.uart-serial-txbuf-size": 1024,
+            "cellular.debug-at": false
+        },
+        "EP_AGORA": {
+            "telit-me910-gnss.enabled": true,
+            "ppp.enabled": false,
+            "cellular.offload-dns-queries": true,
+            "nsapi.offload-tlssocket": true
+        },
+        "EP_ATLAS": {
+            "telit-me310-gnss.enabled": true,
+            "ep-atlas.enable-usb-stdio-console": true
+        }
+    }
+}
