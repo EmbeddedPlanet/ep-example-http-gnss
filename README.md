@@ -1,6 +1,6 @@
-# GNSS Example for Embedded Planet Modules
+# HTTP and GNSS Example for Embedded Planet Modules
 
-This repository contains an example of how to use the GNSS features on Embedded Planet's Agora and Chronos modules.
+This repository contains an example of how to use the HTTP and GNSS features on Embedded Planet's Agora and Chronos modules.
 
 To build for Agora, clone this repository, download all dependencies (`mbed deploy`). Then, build the program for the `EP_AGORA` mbed target.
 
