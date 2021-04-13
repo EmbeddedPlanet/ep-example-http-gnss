@@ -91,8 +91,8 @@ int main()
     // Configure the GNSS data stream (enable GGA and RMC)
 #if TELIT_ME310_GNSS_ENABLED
     gnss.configure_gnss_data_stream(gnss_type::NMEA_STREAM_ENABLE_SECOND_FORMAT, true, false, false, false, true, false);
-#else
-    gnss.configure_gnss_data_stream(gnss_type::NMEA_STREAM_ENABLE_SECOND_FORMAT, true, false, false, true, true, false);
+// #else
+//     gnss.configure_gnss_data_stream(gnss_type::NMEA_STREAM_ENABLE_SECOND_FORMAT, true, false, false, true, true, false);
 #endif
     // Configure the extended GNSS data stream (enable GNRMC and GPGGA)
 #if TELIT_ME310_GNSS_ENABLED
@@ -140,7 +140,11 @@ int main()
         ThisThread::sleep_for(10s);
 
         // Print out current position info
+#if TELIT_ME310_GNSS_ENABLED
         position_info = gnss.get_current_position();
+#else
+        position_info = gnss.get_current_position(false);
+#endif
 
         tr_info("Satellites in View:                            %d", position_info.NumberOfSatellites);
 
