@@ -14,8 +14,7 @@
             "telit-me910-gnss.enabled": true,
             "ppp.enabled": false,
             "cellular.offload-dns-queries": true,
-            "nsapi.offload-tlssocket": true,
-            "cellular.debug-at": true
+            "nsapi.offload-tlssocket": true
         },
         "EP_ATLAS": {
             "telit-me310-gnss.enabled": true,
