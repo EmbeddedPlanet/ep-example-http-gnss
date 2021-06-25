@@ -14,7 +14,11 @@
             "telit-me910-gnss.enabled": true,
             "ppp.enabled": false,
             "cellular.offload-dns-queries": true,
-            "nsapi.offload-tlssocket": true
+            "nsapi.offload-tlssocket": true,
+            "nsapi.default-cellular-apn"                : "\"arkessa.com\"",
+            "nsapi.default-cellular-username"           : "\"arkessa\"",
+            "nsapi.default-cellular-password"           : "\"arkessa\"",
+            "cellular.debug-at": true
         },
         "EP_ATLAS": {
             "telit-me310-gnss.enabled": true,

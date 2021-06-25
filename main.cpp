@@ -25,8 +25,13 @@
 #include "mbed_trace.h"
 
 #include "http_request.h"
+#include "CellularNetwork.h"
+#include "AT_CellularContext.h"
 
 #define TRACE_GROUP   "MAIN"
+
+#define DELAY_PERIOD                30s
+#define TRANSMISSION_LED_ON_TIME    100ms
 
 using namespace ep;
 
@@ -45,6 +50,20 @@ void dump_response(HttpResponse* res) {
     printf("\nBody (%d bytes):\n\n%s\n", res->get_body_length(), res->get_body_as_string().c_str());
 }
 
+#ifdef TARGET_EP_AGORA
+void led_on()
+{
+    DigitalOut led(PIN_NAME_LED_RED);
+    led = 0;
+}
+
+void led_off()
+{
+    DigitalOut led(PIN_NAME_LED_RED);
+    led = 1;
+}
+#endif
+
 int main()
 {
 
@@ -58,6 +77,11 @@ int main()
     tr_info("********************************************");
     tr_info("* Embedded Planet HTTP GNSS Example v0.1.0 *");
     tr_info("********************************************");
+
+#ifdef TARGET_EP_AGORA
+    // Turn on the LED to indicate we're connecting
+    led_on();
+#endif
 
     // GNSS object
     gnss_type gnss;
@@ -114,7 +138,52 @@ int main()
         while(1) {
             ThisThread::sleep_for(10ms);
         }
+    }        
+    
+    CellularDevice *dev = CellularDevice::get_target_default_instance();
+    dev->hard_power_on();
+    dev->soft_power_on();
+
+    AT_CellularContext *context = reinterpret_cast<AT_CellularContext *>(network);
+    char cell_apn[12] = "arkessa.com";
+    char cell_username[8] = "arkessa";
+    char cell_password[8] = "arkessa";
+    CellularContext::AuthenticationType cellular_auth = CellularContext::CHAP;
+    context->set_credentials(cell_apn, cell_username, cell_password);
+
+    // Configure authentication
+    context->set_authentication_type(cellular_auth);
+    ATHandler *at_handler = context->get_device()->get_at_handler();
+    at_handler->lock();
+    at_handler->set_at_timeout(10000); // 10 seconds
+    switch (cellular_auth) {
+        case CellularContext::NOAUTH:
+            at_handler->at_cmd_discard("+CGAUTH", "=", "%d%d", 1, 0);
+            if (at_handler->get_last_error() != NSAPI_ERROR_OK) {
+                tr_error("Unable to set authentication type");
+            }
+
+            break;
+        case CellularContext::PAP:
+            at_handler->at_cmd_discard("+CGAUTH", "=", "%d%d%s%s", 1, 1, cell_username, cell_password);
+            if (at_handler->get_last_error() != NSAPI_ERROR_OK) {
+                tr_error("Unable to set authentication type");
+            }
+
+            break;
+        case CellularContext::CHAP:
+            at_handler->at_cmd_discard("+CGAUTH", "=", "%d%d%s%s", 1, 2, cell_username, cell_password);
+            if (at_handler->get_last_error() != NSAPI_ERROR_OK) {
+                tr_error("Unable to set authentication type");
+            }
+
+            break;
+        default:
+            // Don't do anything when authentication type is set to 'Automatic'
+            break;
     }
+    at_handler->restore_at_timeout();
+    at_handler->unlock();
 
     nsapi_error_t connect_status = network->connect();
 
@@ -130,15 +199,38 @@ int main()
     network->get_ip_address(&socket_address);
     tr_info("IP address: %s", socket_address.get_ip_address());
 
+    TCPSocket *socket;
+    nsapi_error_t open_result;
+    nsapi_error_t connect_result;
+    SocketAddress sa;
+
+    tr_info("----- Setting up TCP connection -----");
+    socket = new TCPSocket();
+    open_result = socket->open(network);
+    if (open_result != NSAPI_ERROR_OK) {
+        tr_error("Opening TCPSocket failed... %d", open_result);
+        while (1) {
+            ThisThread::sleep_for(10ms);
+        }
+    }
+
+    network->gethostbyname("dweet.io", &sa);
+    sa.set_port(80);
+    connect_result = socket->connect(sa);
+    if (connect_result != NSAPI_ERROR_OK) {
+        tr_error("Connecting over TCPSocket failed... %d", connect_result);
+        while (1) {
+            ThisThread::sleep_for(10ms);
+        }
+    }
+    tr_info("Connected over TCP to dweet.io:80");
+
+#ifdef TARGET_EP_AGORA
+    // Connection complete, turn off the LED
+    led_off();
+#endif
+
     while (1) {
-        TCPSocket *socket;
-        nsapi_error_t open_result;
-        nsapi_error_t connect_result;
-        SocketAddress sa;
-
-        // Sleep for 10s
-        ThisThread::sleep_for(10s);
-
         // Print out current position info
 #if TELIT_ME310_GNSS_ENABLED
         position_info = gnss.get_current_position();
@@ -168,23 +260,6 @@ int main()
                 tr_info("\tCourse over ground:                  %.1f", position_info.CourseOverGround);
                 tr_info("\tSpeed over ground:                   %.1f km/hr", position_info.SpeedOverGround);
                 tr_info("\tTimestamp:                           %s", ctime(&position_info.UtcTimestamp));
-
-                tr_info("----- Setting up TCP connection -----");
-                socket = new TCPSocket();
-                open_result = socket->open(network);
-                if (open_result != NSAPI_ERROR_OK) {
-                    tr_error("Opening TCPSocket failed... %d", open_result);
-                    break;
-                }
-
-                network->gethostbyname("dweet.io", &sa);
-                sa.set_port(80);
-                connect_result = socket->connect(sa);
-                if (connect_result != NSAPI_ERROR_OK) {
-                    tr_error("Connecting over TCPSocket failed... %d", connect_result);
-                    break;
-                }
-                tr_info("Connected over TCP to dweet.io:80");
 
                 {
                     snprintf(addr_buf, 255, "https://dweet.io:443/dweet/for/ep-example-http-gnss_%lu", device_address);
@@ -216,8 +291,14 @@ int main()
                         dump_response(post_res);
                         delete post_req;
                     }
+
+#ifdef TARGET_EP_AGORA
+                    // Toggle the LED quickly to show we transmitted data
+                    led_on();
+                    ThisThread::sleep_for(TRANSMISSION_LED_ON_TIME);
+                    led_off();
+#endif
                 }
-                socket->close();
 
                 break;
             default:
@@ -225,5 +306,10 @@ int main()
                 tr_error("Unknown fix, error occurred");
                 break;
         }
+
+        // Sleep for 10s
+        ThisThread::sleep_for(DELAY_PERIOD);
     }
+
+    socket->close();
 }
